@@ -5,3 +5,5 @@ edition = "2021"
 
 [dependencies]
 bevy = { version = "0.15.2" , features = ["jpeg"]}
+rand = "0.9.0"
+rand_chacha = "0.9.0"
