@@ -1,9 +1,9 @@
 //! Eat the cakes. Eat them all. An example 3D game.
 
 use std::f32::consts::PI;
-
+use rand::rngs::OsRng;
 use bevy::prelude::*;
-use rand::{rngs::OsRng, Rng, SeedableRng};
+use rand::{ Rng, SeedableRng};
 use rand_chacha::ChaCha8Rng;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Default, States)]
@@ -110,7 +110,11 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut game: ResMu
         // This isn't strictly required in practical use unless you need your app to be deterministic.
         ChaCha8Rng::seed_from_u64(19878367467713)
     } else {
-        ChaCha8Rng::from_rng(&mut OsRng).unwarp()
+        let mut os_rng = ChaCha8Rng::from_seed([0;32]);
+        ChaCha8Rng::from_rng(&mut os_rng)
+
+        //ChaCha8Rng::from_seed([0; 32])
+        //ChaCha8Rng::seed_from_u64(42)
     };
 
     // reset the game state
