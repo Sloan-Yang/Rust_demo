@@ -1,5 +1,6 @@
 //! Eat the cakes. Eat them all. An example 3D game.
 
+mod test; 
 use std::f32::consts::PI;
 use rand::rngs::OsRng;
 use bevy::prelude::*;
@@ -26,7 +27,7 @@ fn main() {
         )))
         .init_state::<GameState>()
         .enable_state_scoped_entities::<GameState>()
-        .add_systems(Startup, setup_cameras)
+        .add_systems(Startup, setup_cameras)//Bevy 自动解析 setup_cameras 的参数，并从 ECS 资源中提供它们，所以不需要手动传入 commands 和 game
         .add_systems(OnEnter(GameState::Playing), setup)
         .add_systems(
             Update,
@@ -122,7 +123,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut game: ResMu
     game.score = 0;
     game.player.i = BOARD_SIZE_I / 2;
     game.player.j = BOARD_SIZE_J / 2;
-    game.player.move_cooldown = Timer::from_seconds(0.3, TimerMode::Once);
+    game.player.move_cooldown = Timer::from_seconds(0.1, TimerMode::Once);
 
     commands.spawn((
         StateScoped(GameState::Playing),
