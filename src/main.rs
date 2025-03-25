@@ -175,30 +175,29 @@ fn main(){
     App::new()
         .add_plugins(DefaultPlugins)
         .init_resource::<Game>()
-        .insert_resource(BonusSpawnTimer(
-            Timer::from_seconds(
-                5.0,
-                TimerMode::Repeating,
-            )   ))
+        .insert_resource(BonusSpawnTimer(Timer::from_seconds(
+            5.0, TimerMode::Repeating)))
         .init_state::<GameState>()
         .enable_state_scoped_entities::<GameState>()
         .add_systems(Startup, setup_cameras)
         .add_systems(OnEnter(GameState::Playing), setup)
-        .add_systems(Update, (
-            move_player,
-            focus_camera,
-            rotate_bonus,
-            scoreboard_system,
-            spawn_bonus,
+        .add_systems(
+            Update,
+            (
+                move_player,
+                focus_camera,
+                rotate_bonus,
+                scoreboard_system,
+                spawn_bonus,
+            )
+            .run_if(in_state(GameState::Playing))
         )
-        .run_if(in_state(GameState::Playing))
-    )
-    .add_systems(OnEnter(GameState::GameOver), display_score)
-    .add_systems(Update, gameover_keyboard.run_if(in_state(GameState::GameOver)) ,
-    ).run();
-
-
+        .add_systems(OnEnter(GameState::GameOver),display_score)
+        .add_systems(Update,
+        gameover_keyboard.run_if(in_state(GameState::GameOver) ),  )
+        .run();
 }
+
 
 fn display_score(mut commands: Commands,game:Res<Game>){
     commands
@@ -280,37 +279,16 @@ fn spawn_bonus(
 }
 
 fn rotate_bonus(
+    game:Res<Game>,
     time: Res<Time>,
-    mut game:ResMut<Game>,
-    mut transforms: ParamSet<(Query<&mut Transform,With<Camera3d>>, Query<&Transform>)>,
+    mut transforms: Query<&mut Transform>,
 ){
-    const SPEED: f32 =2.0 ;
-    if let (Some(player_entity),Some(bonus_entity)) =(game.player.entity,game.bonus.entity)  {
-        let transform_query = transforms.p1();
-        if let (Ok(player_transform ), Ok(bonus_transform)) =( transform_query.get(player_entity), transform_query.get(bonus_entity),)
-        {
-            game.camera_should_focus = player_transform
-            .translation
-            .lerp(bonus_transform.translation,0.5   );
-        }
-        else if let Some(player_entity)= game.player.entity {
-            if let Ok(player_transform)= transforms.p1().get(player_entity){
-                game.camera_should_focus = player_transform.translation ; 
-            } 
-        }else {
-            game.camera_should_focus =Vec3::from(RESET_FOCUS);
-        }
-
-
-        let mut camera_motion  = game.camera_should_focus - game.camera_is_focus;
-        if camera_motion.length()> 0.2 {
-            camera_motion *= SPEED*time.delta_secs();
-            game.camera_is_focus += camera_motion;
-        }
-        for mut transform in transforms.p0().iter_mut(){
-            *transform = transform.looking_at(game.camera_is_focus,Vec3::Y);
-        }
-        
+    if let  Some(entity) = game.bonus.entity {
+        if let Ok(mut cake_trans) = transforms.get_mut(entity){
+            cake_trans.rotate_y(time.delta_secs());
+            cake_trans.scale =
+                Vec3::splat(1.0+(game.score as f32 / 10.0 * ops::sin(time.elapsed_secs())).abs());
+            }
     }
 
 }
