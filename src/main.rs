@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{log::tracing_subscriber::fmt::format, prelude::*};
 use rand_chacha::ChaCha8Rng;
 use rand::{Rng , SeedableRng};
 use std::{ f32::consts::PI};
@@ -35,16 +35,15 @@ struct   Game {
 #[derive(Resource,Deref,DerefMut)]
 struct Random(ChaCha8Rng);
 
-const BOARD_SIZE_I : usize = 14  ;
-const BOARD_SIZE_J : usize = 21  ;
+const BOARD_SIZE_I : usize = 14;
+const BOARD_SIZE_J : usize = 21;
 
-const RESET_FOCUS: [f32;3] = 
+const  RESET_FOCUS : [f32; 3] = 
 [
-    BOARD_SIZE_I  as f32 / 2.0 ,
-    0.0 ,
-    BOARD_SIZE_J as f32 /2.0 , 
-
-] ; 
+    BOARD_SIZE_I as f32 / 2.0,
+    0.,
+    BOARD_SIZE_J as f32 / 2.0  -0.5,   
+];
 
 #[derive(Clone,Copy,PartialEq,Eq,Hash,Debug,Default,States)]
 enum GameState{
@@ -53,119 +52,112 @@ enum GameState{
     GameOver ,
 }
 
-fn setup_cameras(mut commands:Commands, mut game:ResMut<Game>){
-
+fn setup_cameras(
+    mut commands : Commands ,
+    mut game : ResMut<Game> ,
+){
     game.camera_should_focus = Vec3::from(RESET_FOCUS) ; 
     game.camera_is_focus = game.camera_should_focus ; 
-    commands.spawn(
-(
-            Camera3d::default(),
+    commands.spawn((
+        Camera3d::default(),
         Transform::from_xyz(
-            -(BOARD_SIZE_I as f32 /2.0 ),
-            2.0*BOARD_SIZE_J as f32 /3.0 ,
-            BOARD_SIZE_J as f32 /2.0  -0.5 ,
-        )
-        .looking_at(
-            game.camera_is_focus ,  Vec3::Y 
-        ) ,
-    ) 
-    ) ; 
+            -(BOARD_SIZE_I as f32 /2.0), 
+            (BOARD_SIZE_I as f32 /2.)+2.0, 
+            (BOARD_SIZE_J as f32 /2.0)-0.5    )
+            .looking_at( game.camera_should_focus,
+             Vec3::Y) ,
+    )   ) 
+    ;
 
 }
 
 fn gameover_keyboard(
-    mut next_state:ResMut<NextState<GameState>>,
-    keyboard_input: Res<ButtonInput<KeyCode>>,
+    keyboard_input : Res<ButtonInput<KeyCode>>,
+    mut next_state : ResMut<NextState<GameState>>
 ){
     if keyboard_input.just_pressed(KeyCode::Space){
         next_state.set(GameState::Playing);
     }
 }
 
-fn setup(mut commands: Commands, asset_server:Res<AssetServer>, mut game:ResMut<Game>){
-    let mut rng =  if std::env::var( "GITHUB_ACTIONS") ==  Ok("true".to_string()){
-        ChaCha8Rng::seed_from_u64(19878367467713)}
-    else 
-    { 
+fn setup(
+    mut commands:Commands , asset_server : Res<AssetServer> , 
+    mut game : ResMut<Game>,
+)
+{
+    let mut rng=    if std::env::var("GITHUB_ACTION") == Ok("true".to_string()){
+        ChaCha8Rng::seed_from_u64(121313131322323)
+    }else{
         let mut os_rng = ChaCha8Rng::from_seed([0;32]);
         ChaCha8Rng::from_rng(&mut os_rng)
-
     };
+    game.score = 0;
     game.cake_eaten=0 ;
-    game.score = 0 ; 
-    game.player.i = BOARD_SIZE_I/2 ; 
-    game.player.j = BOARD_SIZE_J/2 ; 
-    game.player.move_cooldown = Timer::from_seconds(0.1,TimerMode::Once);
-
-    commands.spawn((
-            StateScoped(GameState::Playing),
-            PointLight{
-                intensity:2_000_000.0 , 
-                shadows_enabled:true ,
-                range:30.0 ,
-                ..default()
-            },
-            Transform::from_xyz(4.0, 10.0, 4.0),
-    )
-    );   
-
-    let cell_scene = asset_server.load(GltfAssetLabel::Scene(0).from_asset("models/AlienCake/tile.glb"));
-    game.board=(0..BOARD_SIZE_J)
-    .map(|j|{
-        (0..BOARD_SIZE_I)
-            .map(|i|{
-                let height = rng.random_range(-0.1..0.1);
-                commands.spawn((
-                    StateScoped(GameState::Playing),
-                    Transform::from_xyz(i as f32, height-0.2, j as f32),
-                    SceneRoot(cell_scene.clone()),
-                ))   ;
-                Cell{height}
-            })
-            .collect()
-    }).collect();
-
-    game.player.entity= Some(
-        commands.spawn((
-
-            StateScoped(GameState::Playing),
-            Transform{
-                translation: Vec3::new(
-                    game.player.i as f32 ,
-                    game.board[game.player.j][game.player.i].height,
-                    game.player.j as f32 ,
-                ),
-                rotation: Quat::from_rotation_y(-PI / 2.) , 
-                ..default()
-            },
-            SceneRoot(
-                    asset_server
-                        .load(GltfAssetLabel::Scene(0).from_asset("models/AlienCake/alien.glb")),
-            ),
-        )).id(),
-    );
-
-    game.bonus.handle=
-        asset_server.load(GltfAssetLabel::Scene(0).from_asset("models/AlienCake/cakeBirthday.glb"));
+    game.player.i = BOARD_SIZE_I  / 2 ;
+    game.player.j = BOARD_SIZE_J  / 2 ;
+    game.player.move_cooldown = Timer::from_seconds(0.1, TimerMode::Once);
 
     commands.spawn((
         StateScoped(GameState::Playing),
-        Text::new("Score:"),
-        TextFont{
-            font_size:33.0,
+        PointLight{
+            intensity: 2_000_000.0,
+            range: 30.0,
+            shadows_enabled : true, 
             ..default()
         },
-        TextColor(Color::srgb(0.5, 0.5, 1.0)),
-        Node{
-         position_type:PositionType::Absolute,
-         top: Val::Px(5.0),
-         left: Val::Px(5.0),
-         ..default()   
-        },
+        Transform::from_xyz(BOARD_SIZE_I as f32 /2., BOARD_SIZE_J as f32, BOARD_SIZE_J as f32 /2.),
+    
     ));
-    commands.insert_resource(Random(rng));
+    
+    let scene_tile  = asset_server.load(GltfAssetLabel::Scene(0).from_asset("models/AlienCake/tile.glb"));
+    game.board = 
+            (0..BOARD_SIZE_J).map(|j|{
+                (0..BOARD_SIZE_I).map(|i|{
+                    let height =rng.random_range(-0.1..0.1);
 
+                    commands.spawn((
+                        SceneRoot(scene_tile.clone()),
+                        Transform::from_xyz(i as f32 , height-0.2, j as f32),
+                        StateScoped(GameState::Playing),
+                    ));
+                        Cell{height}
+                }).collect()
+    }).collect();
+
+    game.player.entity = Some(
+       commands.spawn((
+        StateScoped(GameState::Playing),
+        SceneRoot(asset_server.load(GltfAssetLabel::Scene(0).from_asset("models/AlienCake/alien.glb"))),   
+        Transform{
+            translation: Vec3::new(
+                game.player.i as f32 ,
+                 game.board[game.player.j][game.player.j].height   , 
+                 game.player.j as f32),
+            rotation: Quat::from_rotation_y(-PI/2.), 
+            ..default() 
+        },) 
+    ).id());
+
+    game.bonus.handle = asset_server.load(GltfAssetLabel::Scene(0).from_asset("models/AlienCake/cakeBirthday.glb"));
+
+    commands.spawn((
+        Text::new("Score :"  ),
+        TextFont{
+            font_size : 32.0 ,
+            ..default()
+        },
+        TextColor(Color::srgb(0.2, 0.3, 0.5)),
+        Node{
+            position_type: PositionType::Absolute,
+            left : Val::Px(5.),
+            top :  Val::Px(5.),
+            ..default()  
+        },
+        StateScoped(GameState::Playing),
+    )); 
+    commands.insert_resource(Random(rng));   
 }
+
 
 #[derive(Resource)]
 struct BonusSpawnTimer(Timer);

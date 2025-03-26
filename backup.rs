@@ -106,15 +106,10 @@ fn setup_cameras(mut commands: Commands, mut game: ResMut<Game>) {
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut game: ResMut<Game>) {
     let mut rng = if std::env::var("GITHUB_ACTIONS") == Ok("true".to_string()) {
-        // We're seeding the PRNG here to make this example deterministic for testing purposes.
-        // This isn't strictly required in practical use unless you need your app to be deterministic.
         ChaCha8Rng::seed_from_u64(19878367467713)
     } else {
         let mut os_rng = ChaCha8Rng::from_seed([0;32]);
         ChaCha8Rng::from_rng(&mut os_rng)
-
-        //ChaCha8Rng::from_seed([0; 32])
-        //ChaCha8Rng::seed_from_u64(42)
     };
 
     // reset the game state
@@ -138,10 +133,10 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut game: ResMu
     // spawn the game board
     let cell_scene =
         asset_server.load(GltfAssetLabel::Scene(0).from_asset("models/AlienCake/tile.glb"));
-    game.board = (0..BOARD_SIZE_J)
-        .map(|j| {
-            (0..BOARD_SIZE_I)
-                .map(|i| {
+    game.board = (0..BOARD_SIZE_J).map(|j|
+         {
+            (0..BOARD_SIZE_I).map(|i| 
+                {
                     let height = rng.random_range(-0.1..0.1);
                     commands.spawn((
                         StateScoped(GameState::Playing),
@@ -149,10 +144,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>, mut game: ResMu
                         SceneRoot(cell_scene.clone()),
                     ));
                     Cell { height }
-                })
-                .collect()
-        })
-        .collect();
+                }).collect()
+        }).collect();
 
     // spawn the game character
     game.player.entity = Some(
